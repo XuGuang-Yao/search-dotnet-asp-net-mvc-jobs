@@ -897,6 +897,20 @@ function addClassWhenLoaded() {
 	if (!$body.hasClass('loaded')) {
 		$body.addClass('loaded');
 	}
+
 }
 
 }(jQuery));
+
+/* The T2 azure search result is not same structure as T1 which causes the types of all the Facets and Results
+ * are serialized as array instead of object. Adding this method helps to get a specific value in array more convenient.*/
+
+function GetValueFromArr(arr, key) {
+	var value;
+	arr.map((item) => {
+		if (item && item.Key == key) {
+			value = item.Value;
+		}
+	});
+	return value;
+}

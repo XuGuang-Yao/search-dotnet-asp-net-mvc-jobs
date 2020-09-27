@@ -124,9 +124,6 @@
                 Search();
             }
         });
-
-
-
     }
 
     function Search() {
@@ -200,10 +197,10 @@
         pinInfobox = new Microsoft.Maps.Infobox(new Microsoft.Maps.Location(0, 0), { width: 300, height: 100, visible: false });
         infoboxLayer.push(pinInfobox);
         for (var i = 0; i < data.Results.length; i++) {
-            var latLon = new Microsoft.Maps.Location(data.Results[i].Document.geo_location.Latitude, data.Results[i].Document.geo_location.Longitude);
+            var latLon = new Microsoft.Maps.Location(data.Results[i].Document[11].Value[1].Value[1], data.Results[i].Document[11].Value[1].Value[0]);
             var pin = new Microsoft.Maps.Pushpin(latLon, { text: i + 1 });
-            pin.Title = data.Results[i].Document.business_title;
-            pin.Description = data.Results[i].Document.work_location + '<br><a href="/home/jobdetails?id=' + data.Results[i].Document.id + '" class="read-more">Read More</a>';
+            pin.Title = data.Results[i].Document[4].Value;
+            pin.Description = data.Results[i].Document[8].Value + '<br><a href="/home/jobdetails?id=' + data.Results[i].Document[0].Value + '" class="read-more">Read More</a>';
             Microsoft.Maps.Events.addHandler(pin, 'click', displayInfobox);
             Microsoft.Maps.Events.addHandler(map, 'viewchange', hideInfobox);
             map.entities.push(pin); //add pushpin to pinLayer
@@ -313,7 +310,11 @@
     function UpdateBusinessTitleFacets(data) {
         var facetResultsHTML = '';
         for (var i = 0; i < data.length; i++) {
-            facetResultsHTML += '<li><a href="javascript:void(0)" onclick="ChooseBusinessTitleFacet(\'' + data[i].Value + '\');">' + data[i].Value + ' (' + data[i].Count + ')</span></a></li>';
+
+            for (var j = 0; j < data[i].Values.length; j++) {
+
+                facetResultsHTML += '<li><a href="javascript:void(0)" onclick="ChooseBusinessTitleFacet(\'' + data[i].Values[j] + '\');">' + data[i].Values[j] + ' (' + data[i].Count + ')</span></a></li>';
+            }
         }
 
         $("#business_title_facets").html(facetResultsHTML);
@@ -328,8 +329,13 @@
     function UpdatePostingTypeFacets(data) {
         var facetResultsHTML = '';
         for (var i = 0; i < data.length; i++) {
-            facetResultsHTML += '<li><a href="javascript:void(0)" onclick="ChoosePostingTypeFacet(\'' + data[i].Value + '\');">' + data[i].Value + ' (' + data[i].Count + ')</span></a></li>';
+
+            for (var j = 0; j < data[i].Values.length; j++) {
+
+                facetResultsHTML += '<li><a href="javascript:void(0)" onclick="ChoosePostingTypeFacet(\'' + data[i].Values[j] + '\');">' + data[i].Values[j] + ' (' + data[i].Count + ')</span></a></li>';
+            }
         }
+
 
         $("#posting_type_facets").html(facetResultsHTML);
     }
@@ -342,10 +348,14 @@
     function UpdateSalaryRangeFacets(data) {
         var facetResultsHTML = '';
         for (var i = 0; i < data.length; i++) {
-            var lowRange = parseInt(data[i].Value);
-            var highRange = lowRange + 49999;
 
-            facetResultsHTML += '<li><a href="javascript:void(0)" onclick="ChooseSalaryRangeFacet(\'' + data[i].Value + '\');">$' + lowRange.toLocaleString() + ' - $' + highRange.toLocaleString() + ' (' + data[i].Count + ')</span></a></li>';
+            for (var j = 0; j < data[i].Values.length; j++) {
+
+                var lowRange = parseInt(data[i].Values[j]);
+                var highRange = lowRange + 49999;
+
+                facetResultsHTML += '<li><a href="javascript:void(0)" onclick="ChooseSalaryRangeFacet(\'' + data[i].Values[j] + '\');">$' + lowRange.toLocaleString() + ' - $' + highRange.toLocaleString() + ' (' + data[i].Count + ')</span></a></li>';
+            }
         }
 
         $("#salary_range_facets").html(facetResultsHTML);
@@ -385,28 +395,28 @@
                 imgCounter = 0;
             jobDetailsHTML += '<div class="thumb"><img src="/images/content/bus-0' + imgCounter + '.png" alt=""></div>';
             jobDetailsHTML += '<div class="clearfix visible-xs"></div>';
-            var postingDate = data.Results[i].Document.posting_date;
+            var postingDate = GetValueFromArr(data.Results[i].Document, 'posting_date');
             var date = new Date(parseInt(postingDate.substr(6)));
 
             jobDetailsHTML += '<div class="date">' + date.getDay() + ' <span>' + monthNames[date.getMonth()] + '</span></div>';
 
             var featuredListing = '';
-            if (data.Results[0].Document.tags.length > 0)
+            if (GetValueFromArr(data.Results[i].Document, 'tags').length > 0)
                 featuredListing = ' - Featured Job';
 
-            jobDetailsHTML += '<h6 class="title"><a href="/home/jobdetails?id=' + data.Results[i].Document.id + '">' + data.Results[i].Document.business_title + '</a>&nbsp;' + featuredListing + '</h6>';
-            jobDetailsHTML += '<span class="meta">' + data.Results[i].Document.work_location + '</span>';
+            jobDetailsHTML += '<h6 class="title"><a href="/home/jobdetails?id=' + GetValueFromArr(data.Results[i].Document, 'id') + '">' + GetValueFromArr(data.Results[i].Document, 'business_title') + '</a>&nbsp;' + featuredListing + '</h6>';
+            jobDetailsHTML += '<span class="meta">' + GetValueFromArr(data.Results[i].Document, 'work_location') + '</span>';
 
-            jobDetailsHTML += '<p class="description"><b>Salary:</b> $' + data.Results[i].Document.salary_range_from.toLocaleString();
-            if (data.Results[i].Document.salary_range_from != data.Results[i].Document.salary_range_to)
-                jobDetailsHTML += ' to $' + data.Results[i].Document.salary_range_to.toLocaleString();
-            jobDetailsHTML += ' ' + data.Results[i].Document.salary_frequency + '</p>';
+            jobDetailsHTML += '<p class="description"><b>Salary:</b> $' + GetValueFromArr(data.Results[i].Document, 'salary_range_from').toLocaleString();
+            if (data.Results[i].Document[5].Value != GetValueFromArr(data.Results[i].Document, 'salary_range_to'))
+                jobDetailsHTML += ' to $' + GetValueFromArr(data.Results[i].Document, 'salary_range_to').toLocaleString();
+            jobDetailsHTML += ' ' + GetValueFromArr(data.Results[i].Document, 'salary_frequency') + '</p>';
 
-            var jobDesc = data.Results[i].Document.job_description;
+            var jobDesc = GetValueFromArr(data.Results[i].Document, 'job_description');
             jobDesc = jobDesc.substring(0, jobDesc.substring(0, 500).lastIndexOf(' ') + 1);
             if (data.Results[i].Highlights != null)
                 jobDesc = data.Results[i].Highlights.job_description
-            jobDetailsHTML += '<p class="description">' + jobDesc + '...&nbsp;&nbsp;&nbsp;<a href="/home/jobdetails?id=' + data.Results[i].Document.id + '" class="read-more">Read More</a></p>';
+            jobDetailsHTML += '<p class="description">' + jobDesc + '...&nbsp;&nbsp;&nbsp;<a href="/home/jobdetails?id=' + GetValueFromArr(data.Results[i].Document, 'id') + '" class="read-more">Read More</a></p>';
 
             jobDetailsHTML += '</div>';
             jobDetailsHTML += '</div>';

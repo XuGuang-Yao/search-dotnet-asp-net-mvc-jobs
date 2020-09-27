@@ -1,21 +1,18 @@
-﻿using Microsoft.Azure.Search;
-using Microsoft.Azure.Search.Models;
-using Microsoft.Spatial;
+﻿using Azure;
+using Azure.Search.Documents;
+using Azure.Search.Documents.Models;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
-using System.Globalization;
-using System.Linq;
-using System.Web;
 
 namespace NYCJobsWeb
 {
     public class JobsSearch
     {
-        private static SearchServiceClient _searchClient;
-        private static SearchIndexClient _indexClient;
+        //private static SearchServiceClient _indexClient;
+        private static SearchClient _searchClient;
         private static string IndexName = "nycjobs";
-        private static SearchIndexClient _indexZipClient;
+        private static SearchClient _searchZipClient;
         private static string IndexZipCodes = "zipcodes";
 
         public static string errorMessage;
@@ -24,60 +21,71 @@ namespace NYCJobsWeb
         {
             try
             {
-                string searchServiceName = ConfigurationManager.AppSettings["SearchServiceName"];
+                string searchServiceUri = ConfigurationManager.AppSettings["SearchServiceUri"];
                 string apiKey = ConfigurationManager.AppSettings["SearchServiceApiKey"];
 
                 // Create an HTTP reference to the catalog index
-                _searchClient = new SearchServiceClient(searchServiceName, new SearchCredentials(apiKey));
-                _indexClient = new SearchIndexClient(searchServiceName, IndexName, new SearchCredentials(apiKey)); 
-                _indexZipClient = new SearchIndexClient(searchServiceName, IndexZipCodes, new SearchCredentials(apiKey));
-
+                //_indexClient = new SearchServiceClient(new Uri(searchServiceUri), new AzureKeyCredential(apiKey));
+                _searchClient = new SearchClient(new Uri(searchServiceUri), IndexName, new AzureKeyCredential(apiKey));
+                _searchZipClient = new SearchClient(new Uri(searchServiceUri), IndexZipCodes, new AzureKeyCredential(apiKey));
             }
-            catch (Exception e)
+            catch (RequestFailedException ex)
             {
-                errorMessage = e.Message.ToString();
+                errorMessage = ex.Message.ToString();
             }
         }
 
-        public DocumentSearchResult<Document> Search(string searchText, string businessTitleFacet, string postingTypeFacet, string salaryRangeFacet,
+        public SearchResults<SearchDocument> Search(string searchText, string businessTitleFacet, string postingTypeFacet, string salaryRangeFacet,
             string sortType, double lat, double lon, int currentPage, int maxDistance, string maxDistanceLat, string maxDistanceLon)
         {
             // Execute search based on query string
             try
             {
-                SearchParameters sp = new SearchParameters()
+                SearchOptions options = new SearchOptions()
                 {
                     SearchMode = SearchMode.Any,
-                    Top = 10,
+                    Size = 10,
                     Skip = currentPage - 1,
-                    // Limit results
-                    Select = new List<String>() {"id", "agency", "posting_type", "num_of_positions", "business_title", 
-                        "salary_range_from", "salary_range_to", "salary_frequency", "work_location", "job_description",
-                        "posting_date", "geo_location", "tags"},
+
                     // Add count
-                    IncludeTotalResultCount = true,
+                    IncludeTotalCount = true,
+
                     // Add search highlights
-                    HighlightFields = new List<String>() { "job_description" },
                     HighlightPreTag = "<b>",
-                    HighlightPostTag = "</b>",
-                    // Add facets
-                    Facets = new List<String>() { "business_title", "posting_type", "level", "salary_range_from,interval:50000" },
+                    HighlightPostTag = "</b>"
                 };
+                options.HighlightFields.Add("job_description");
+
+                // Limit results
+                var selectList = new List<String>() {"id", "agency", "posting_type", "num_of_positions", "business_title",
+                                                     "salary_range_from", "salary_range_to", "salary_frequency", "work_location",
+                                                     "job_description","posting_date", "geo_location", "tags"};
+                foreach (var item in selectList)
+                {
+                    options.Select.Add(item);
+                }
+
+                // Add facets
+                var facetsList = new List<String>() { "business_title", "posting_type", "level", "salary_range_from,interval:50000" };
+                foreach (var item in facetsList)
+                {
+                    options.Facets.Add(item);
+                }
+
                 // Define the sort type
                 if (sortType == "featured")
                 {
-                    sp.ScoringProfile = "jobsScoringFeatured";      // Use a scoring profile
-                    sp.ScoringParameters = new List<ScoringParameter>();
-                    sp.ScoringParameters.Add(new ScoringParameter("featuredParam", new[] { "featured" }));
-                    sp.ScoringParameters.Add(new ScoringParameter("mapCenterParam", GeographyPoint.Create(lon, lat)));
+                    options.ScoringProfile = "jobsScoringFeatured";      // Use a scoring profile
+                    options.ScoringParameters.Add("featuredParam-featured");
+                    //options.ScoringParameters.Add(new ScoringParameter("mapCenterParam", GeographyPoint.Create(lon, lat)));
+                    options.ScoringParameters.Add($"mapCenterParam-{lon},{lat}");
                 }
                 else if (sortType == "salaryDesc")
-                    sp.OrderBy = new List<String>() { "salary_range_from desc" };
+                    options.OrderBy.Add("salary_range_from desc");
                 else if (sortType == "salaryIncr")
-                    sp.OrderBy = new List<String>() { "salary_range_from" };
+                    options.OrderBy.Add("salary_range_from");
                 else if (sortType == "mostRecent")
-                    sp.OrderBy = new List<String>() { "posting_date desc" };
-
+                    options.OrderBy.Add("posting_date desc");
 
                 // Add filtering
                 string filter = null;
@@ -104,64 +112,64 @@ namespace NYCJobsWeb
                     filter += "geo.distance(geo_location, geography'POINT(" + maxDistanceLon + " " + maxDistanceLat + ")') le " + maxDistance.ToString();
                 }
 
-                sp.Filter = filter;
+                options.Filter = filter;
 
-                return _indexClient.Documents.Search(searchText, sp);
+                return _searchClient.Search(searchText, options);
             }
-            catch (Exception ex)
+            catch (RequestFailedException ex)
             {
                 Console.WriteLine("Error querying index: {0}\r\n", ex.Message.ToString());
             }
             return null;
         }
 
-        public DocumentSearchResult<Document> SearchZip(string zipCode)
+        public SearchResults<SearchDocument> SearchZip(string zipCode)
         {
             // Execute search based on query string
             try
             {
-                SearchParameters sp = new SearchParameters()
+                SearchOptions options = new SearchOptions()
                 {
                     SearchMode = SearchMode.All,
-                    Top = 1,
+                    Size = 1,
                 };
-                return _indexZipClient.Documents.Search(zipCode, sp);
+                return _searchZipClient.Search(zipCode, options);
             }
-            catch (Exception ex)
+            catch (RequestFailedException ex)
             {
                 Console.WriteLine("Error querying index: {0}\r\n", ex.Message.ToString());
             }
             return null;
         }
 
-        public DocumentSuggestResult<Document> Suggest(string searchText, bool fuzzy)
+        public SuggestResults<SearchDocument> Suggest(string searchText, bool fuzzy)
         {
             // Execute search based on query string
             try
             {
-                SuggestParameters sp = new SuggestParameters()
+                SuggestOptions options = new SuggestOptions()
                 {
                     UseFuzzyMatching = fuzzy,
-                    Top = 8
+                    Size = 8
                 };
 
-                return _indexClient.Documents.Suggest(searchText, "sg", sp);
+                return _searchClient.Suggest(searchText, "sg", options);
             }
-            catch (Exception ex)
+            catch (RequestFailedException ex)
             {
                 Console.WriteLine("Error querying index: {0}\r\n", ex.Message.ToString());
             }
             return null;
         }
 
-        public Document LookUp(string id)
+        public SearchDocument LookUp(string id)
         {
             // Execute geo search based on query string
             try
             {
-                return _indexClient.Documents.Get(id);
+                return _searchClient.GetDocument(id);
             }
-            catch (Exception ex)
+            catch (RequestFailedException ex)
             {
                 Console.WriteLine("Error querying index: {0}\r\n", ex.Message.ToString());
             }

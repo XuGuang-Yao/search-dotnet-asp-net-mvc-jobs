@@ -1,11 +1,8 @@
-﻿using BingGeocoder;
-using NYCJobsWeb.Models;
+﻿using NYCJobsWeb.Models;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Globalization;
 using System.Linq;
-using System.Web;
 using System.Web.Mvc;
 
 namespace NYCJobsWeb.Controllers
@@ -41,24 +38,51 @@ namespace NYCJobsWeb.Controllers
             if (maxDistance > 0)
             {
                 var zipReponse = _jobsSearch.SearchZip(zipCode.ToString());
-                foreach (var result in zipReponse.Results)
+                foreach (var result in zipReponse.GetResults())
                 {
                     var doc = (dynamic)result.Document;
-                    maxDistanceLat = Convert.ToString(doc["geo_location"].Latitude, CultureInfo.InvariantCulture);
-                    maxDistanceLon = Convert.ToString(doc["geo_location"].Longitude, CultureInfo.InvariantCulture);
+                    maxDistanceLat = Convert.ToString(doc["geo_location"]["coordinates"][1], CultureInfo.InvariantCulture);
+                    maxDistanceLon = Convert.ToString(doc["geo_location"]["coordinates"][0], CultureInfo.InvariantCulture);
                 }
             }
 
             var response = _jobsSearch.Search(q, businessTitleFacet, postingTypeFacet, salaryRangeFacet, sortType, lat, lon, currentPage, maxDistance, maxDistanceLat, maxDistanceLon);
-            return new JsonResult
+
+            NYCJob data = new NYCJob()
+            { 
+                Results = response.GetResults().ToList(),
+                Count = Convert.ToInt32(response.TotalCount)
+            };
+
+            //The count is missing in view side, wrap Facets to a custom entity.
+            foreach (var facet in response.Facets)
+            {
+                List<MyFacetResult> facetResults = new List<MyFacetResult>();
+
+                foreach (var result in response.Facets.FirstOrDefault(x => x.Key == facet.Key).Value)
+                {
+                    MyFacetResult facetResult = new MyFacetResult();
+
+                    facetResult.Keys = result.Keys;
+                    facetResult.Values = result.Values;
+                    facetResult.Count = result.Count;
+
+                    facetResults.Add(facetResult);
+                }
+
+                data.Facets.Add(facet.Key, facetResults);
+            }
+
+            return new JsonResult()
             {
                 // ***************************************************************************************************************************
-                // If you get an error here, make sure to check that you updated the SearchServiceName and SearchServiceApiKey in Web.config
+                // If you get an error here, make sure to check that you updated the SearchServiceUri and SearchServiceApiKey in Web.config
                 // ***************************************************************************************************************************
 
                 JsonRequestBehavior = JsonRequestBehavior.AllowGet,
-                Data = new NYCJob() { Results = response.Results, Facets = response.Facets, Count = Convert.ToInt32(response.Count) }
+                Data = data
             };
+
         }
 
         [HttpGet]
@@ -104,3 +128,4 @@ namespace NYCJobsWeb.Controllers
 
     }
 }
+

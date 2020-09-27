@@ -46,38 +46,38 @@
         var monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
         ];
 
-        $("#job_id").html(data.Result.job_id);
-        $("#work_location").html(data.Result.work_location);
-        $("#business_title").html(data.Result.business_title);
-        $("#civil_service_title").html(data.Result.civil_service_title);
+        $("#job_id").html(GetValueFromArr(data.Result,'job_id'));
+        $("#work_location").html(GetValueFromArr(data.Result,'work_location'));
+        $("#business_title").html(GetValueFromArr(data.Result,'business_title'));
+        $("#civil_service_title").html(GetValueFromArr(data.Result,'civil_service_title'));
         
 
-        var salary = '$' + data.Result.salary_range_from.toLocaleString();
-        if (data.Result.salary_range_from != data.Result.salary_range_to)
-            salary += ' to $' + data.Result.salary_range_to.toLocaleString();
-        salary += ' ' + data.Result.salary_frequency;
+        var salary = '$' + GetValueFromArr(data.Result,'salary_range_from').toLocaleString();
+        if (GetValueFromArr(data.Result, 'salary_range_from') != GetValueFromArr(data.Result,'salary_range_to'))
+            salary += ' to $' + GetValueFromArr(data.Result,'salary_range_to').toLocaleString();
+        salary += ' ' + GetValueFromArr(data.Result,'salary_frequency');
         $("#salary").html(salary);
 
-        $("#agency").html(data.Result.agency);
-        $("#division").html(data.Result.division_work_unit);
-        $("#hours_per_shift").html(data.Result.hours_per_shift);
-        $("#level").html(data.Result.level);
-        $("#num_of_positions").html(data.Result.num_of_positions);
-        $("#posting_type").html(data.Result.posting_type);
+        $("#agency").html(GetValueFromArr(data.Result,'agency'));
+        $("#division").html(GetValueFromArr(data.Result,'division_work_unit'));
+        $("#hours_per_shift").html(GetValueFromArr(data.Result,'hours_per_shift'));
+        $("#level").html(GetValueFromArr(data.Result,'level'));
+        $("#num_of_positions").html(GetValueFromArr(data.Result,'num_of_positions'));
+        $("#posting_type").html(GetValueFromArr(data.Result,'posting_type'));
         
-        $("#job_description").html(CleanText(data.Result.job_description));
+        $("#job_description").html(CleanText(GetValueFromArr(data.Result,'job_description')));
 
-        $("#minimum_qual_requirements").html(CleanText(data.Result.minimum_qual_requirements));
-        $("#preferred_skills").html(CleanText(data.Result.preferred_skills));
-        $("#residency_requirement").html(CleanText(data.Result.residency_requirement));
-        $("#to_apply").html(CleanText(data.Result.to_apply));
+        $("#minimum_qual_requirements").html(CleanText(GetValueFromArr(data.Result,'minimum_qual_requirements')));
+        $("#preferred_skills").html(CleanText(GetValueFromArr(data.Result,'preferred_skills')));
+        $("#residency_requirement").html(CleanText(GetValueFromArr(data.Result,'residency_requirement')));
+        $("#to_apply").html(CleanText(GetValueFromArr(data.Result,'to_apply')));
 
-        var postingDate = data.Result.posting_date;
+        var postingDate = GetValueFromArr(data.Result,'posting_date');
         var date = new Date(parseInt(postingDate.substr(6)));
         $("#dateDiv").html('<div class="date">' + date.getDay() + ' <span>' + monthNames[date.getMonth()] + '</span></div>');
 
-        $("#business_title_main").html(data.Result.business_title);
-        $("#work_location_main").html(data.Result.work_location);
+        $("#business_title_main").html(GetValueFromArr(data.Result,'business_title'));
+        $("#work_location_main").html(GetValueFromArr(data.Result,'work_location'));
 
     }
 
